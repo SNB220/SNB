@@ -881,18 +881,6 @@ This project is open source and available for personal and commercial use.
 
 ## 🚀 Quick Reference
 
-### Common Aliases (add to ~/.bashrc or ~/.zshrc)
-```bash
-# Linux/macOS
-alias snmap='snb nmap'
-alias sgobuster='snb gobuster'
-alias snikto='snb nikto'
-alias sdirsearch='snb dirsearch'
-
-# For sudo commands
-alias ssnb='sudo env "PATH=$PATH" snb'
-```
-
 ### Common Use Cases
 ```bash
 # Quick port scan
