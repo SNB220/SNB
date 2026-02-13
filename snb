@@ -1,0 +1,4 @@
+#!/bin/bash
+# SNB wrapper script for Linux/macOS
+SNB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "$SNB_DIR/snb.py" "$@"
