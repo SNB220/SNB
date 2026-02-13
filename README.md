@@ -2,6 +2,8 @@
 
 A cross-platform command-line wrapper tool that automatically saves the output of any command to organized, timestamped files.
 
+<img width="1920" height="1080" alt="SNB" src="https://github.com/user-attachments/assets/77756ffd-0916-4a47-8b9f-45538449d517">
+
 ## 🎯 Features
 
 - **Cross-platform**: Works on Windows, Linux, and macOS
