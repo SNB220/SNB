@@ -24,7 +24,7 @@ A cross-platform command-line wrapper tool that automatically saves the output o
 ## 📦 Installation
 
 ### Requirements
-- Python 3.6 or higher
+- Python 3.7 or higher
 - Windows, Linux, or macOS
 
 ### Windows Installation

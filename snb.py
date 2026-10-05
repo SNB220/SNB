@@ -30,6 +30,7 @@ import shutil
 import json
 import re
 from pathlib import Path
+from html import escape
 
 
 class SNB:
@@ -112,9 +113,22 @@ class SNB:
         start_time = datetime.datetime.now()
         
         try:
+            # Windows shell built-ins such as `echo` are not standalone executables.
+            # Route those commands through cmd.exe while keeping normal commands direct.
+            process_command = command
+            if os.name == 'nt' and command and command[0].lower() in {
+                'assoc', 'call', 'cd', 'chcp', 'cls', 'cmd', 'color', 'copy',
+                'date', 'del', 'dir', 'echo', 'endlocal', 'erase', 'exit',
+                'for', 'ftype', 'if', 'md', 'mkdir', 'move', 'path', 'pause',
+                'popd', 'prompt', 'pushd', 'rd', 'ren', 'rename', 'rmdir',
+                'set', 'shift', 'start', 'time', 'title', 'type', 'ver',
+                'verify', 'vol'
+            }:
+                process_command = ['cmd.exe', '/c', subprocess.list2cmdline(command)]
+
             # Run the command and capture output
             process = subprocess.Popen(
-                command,
+                process_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -155,6 +169,8 @@ class SNB:
                     process.kill()
             
             process.wait()
+            if process.stdout:
+                process.stdout.close()
             
             end_time = datetime.datetime.now()
             execution_time = end_time - start_time
@@ -334,14 +350,17 @@ Timestamp: {metadata['timestamp']}
     
     def _format_html(self, metadata, output):
         """Format output as HTML."""
-        escaped_output = output.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        escaped_tool = escape(str(metadata['tool']))
+        escaped_command = escape(str(metadata['command']))
+        escaped_timestamp = escape(str(metadata['timestamp']))
+        escaped_output = escape(output)
         
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNB Output - {metadata['tool']}</title>
+    <title>SNB Output - {escaped_tool}</title>
     <style>
         body {{
             font-family: 'Courier New', monospace;
@@ -397,13 +416,13 @@ Timestamp: {metadata['timestamp']}
         
         <div class="metadata">
             <div class="metadata-item">
-                <span class="metadata-label">Tool:</span> {metadata['tool']}
+                <span class="metadata-label">Tool:</span> {escaped_tool}
             </div>
             <div class="metadata-item">
-                <span class="metadata-label">Command:</span> {metadata['command']}
+                <span class="metadata-label">Command:</span> {escaped_command}
             </div>
             <div class="metadata-item">
-                <span class="metadata-label">Timestamp:</span> <span class="timestamp">{metadata['timestamp']}</span>
+                <span class="metadata-label">Timestamp:</span> <span class="timestamp">{escaped_timestamp}</span>
             </div>
             {f'<div class="metadata-item"><span class="metadata-label">Return Code:</span> {metadata["return_code"]}</div>' if metadata['return_code'] is not None else ''}
             {f'<div class="metadata-item"><span class="metadata-label">Execution Time:</span> {metadata["execution_time"]}</div>' if metadata['execution_time'] else ''}
@@ -450,13 +469,8 @@ Timestamp: {metadata['timestamp']}
             current_time = datetime.datetime.now()
             compressed_count = 0
             
-            # Walk through all tool directories
-            for tool_dir in self.base_dir.iterdir():
-                if not tool_dir.is_dir():
-                    continue
-                
-                # Check each .txt file in the tool directory
-                for file_path in tool_dir.glob("*.txt"):
+            # Check output files at any depth, including session directories.
+            for file_path in self.base_dir.rglob("*.txt"):
                     # Get file modification time
                     file_mtime = datetime.datetime.fromtimestamp(file_path.stat().st_mtime)
                     file_age_days = (current_time - file_mtime).days
@@ -497,8 +511,8 @@ Timestamp: {metadata['timestamp']}
         
         # Determine search scope
         if tool_name:
-            # Search specific tool directory
-            tool_dirs = [self.base_dir / tool_name]
+            # Search matching tool directories, including session directories.
+            tool_dirs = [directory for directory in self.base_dir.rglob(tool_name) if directory.is_dir()]
         else:
             # Search all tool directories
             tool_dirs = [d for d in self.base_dir.iterdir() if d.is_dir()]
@@ -508,8 +522,10 @@ Timestamp: {metadata['timestamp']}
             if not tool_dir.exists():
                 continue
             
-            # Search .txt files (and .txt.gz)
-            for file_path in list(tool_dir.glob("*.txt")) + list(tool_dir.glob("*.txt.gz")):
+            # Search all supported formats, including compressed text files.
+            patterns = ["*.txt", "*.txt.gz", "*.json", "*.html", "*.md"]
+            files = [file_path for pattern in patterns for file_path in tool_dir.rglob(pattern)]
+            for file_path in files:
                 try:
                     # Read file (handle both txt and gz)
                     if file_path.suffix == '.gz':
